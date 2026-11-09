@@ -38,14 +38,14 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     if (!images) return NextResponse.json({ error: 'Không tìm thấy bài đăng.' }, { status: 404 });
 
     const uploadDirectory = path.resolve(process.cwd(), 'public', 'uploads', 'posts');
-    const filePaths = images.flatMap(image: string => {
+    const filePaths = images.flatMap((image: string) => {
       if (!image.startsWith('/uploads/posts/')) return [];
       const filename = image.slice('/uploads/posts/'.length);
       if (!/^[a-f0-9-]{36}\.(?:jpg|png|webp)$/i.test(filename)) return [];
       const absolutePath = path.resolve(uploadDirectory, filename);
       return absolutePath.startsWith(`${uploadDirectory}${path.sep}`) ? [absolutePath] : [];
     });
-    const cleanup = await Promise.allSettled(filePaths.map(file: string => unlink(file)));
+    const cleanup = await Promise.allSettled(filePaths.map((file: string) => unlink(file)));
     const failedCleanup = cleanup.filter(result => result.status === 'rejected').length;
     if (failedCleanup) console.warn(`Removed post ${id}; ${failedCleanup} uploaded media file(s) could not be cleaned up.`);
     return NextResponse.json({ success: true, id });
