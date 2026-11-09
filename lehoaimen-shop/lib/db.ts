@@ -1,30 +1,43 @@
 // lib/db.ts - SQLite Database with better-sqlite3
-import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 
 const DB_PATH = process.env.DATABASE_PATH || './data/shop.db';
 const RESOLVED_DB_PATH = path.resolve(/*turbopackIgnore: true*/ DB_PATH);
 
-let db: Database.Database | null = null;
+let db: any = null;
 
-export function getDb(): Database.Database {
+export function getDb(): any {
   if (db) return db;
-  
-  const dbDir = path.dirname(RESOLVED_DB_PATH);
-  if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
+
+  // Kiểm tra nếu đang chạy trên Vercel hoặc môi trường Serverless Read-Only
+  const isServerless = process.env.VERCEL || process.env.NODE_ENV === 'production';
+
+  if (!isServerless) {
+    const dbDir = path.dirname(RESOLVED_DB_PATH);
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
   }
+
+  // Lazy load better-sqlite3 để tránh lỗi compile trên Vercel khi dùng Postgres
+  const Database = require('better-sqlite3');
   
-  db = new Database(RESOLVED_DB_PATH);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-  
-  initializeSchema(db);
+  try {
+    db = new Database(RESOLVED_DB_PATH);
+    db.pragma('journal_mode = WAL');
+    db.pragma('foreign_keys = ON');
+    
+    initializeSchema(db);
+  } catch (error) {
+    console.warn('SQLite connection bypassed or unavailable:', error);
+  }
+
   return db;
 }
 
-function initializeSchema(db: Database.Database) {
+function initializeSchema(db: any) {
+  if (!db) return;
   db.exec(`
     CREATE TABLE IF NOT EXISTS categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -266,4 +279,3 @@ function initializeSchema(db: Database.Database) {
   if (!postColumns.some(column => column.name === 'video_url')) db.exec('ALTER TABLE posts ADD COLUMN video_url TEXT');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_source_url ON posts(source_url) WHERE source_url IS NOT NULL');
 }
-
