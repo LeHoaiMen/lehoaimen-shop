@@ -32,7 +32,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       db.prepare('DELETE FROM posts WHERE id = ?').run(postId);
       let images: unknown;
       try { images = JSON.parse(row.images || '[]'); } catch { images = []; }
-      return Array.isArray(images) ? images.filter((image): image is string => typeof image === 'string') : [];
+      return Array.isArray(images) ? images.filter((image: unknown): image is string => typeof image === 'string') : [];
     });
     const images = remove(id);
     if (!images) return NextResponse.json({ error: 'Không tìm thấy bài đăng.' }, { status: 404 });
